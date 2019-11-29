@@ -164,7 +164,20 @@ plot_dist_by_feature(train.data, 'SibSp')
 
 # 8. Parch
 table(train.data$Parch)
+
 plot_dist_by_feature(train.data, 'Parch')
 
-# ...
+# create a new feature Family size
+train.data$Family.size = as.integer(train.data$Parch + train.data$SibSp + 1)
+
+# create a new boolean feature if traveling alone
+train.data$Travel.alone = ifelse(train.data$Family.size == 1, TRUE, FALSE)
+
+plot_dist_by_feature(train.data, 'Travel.alone')
+# we can se that more than half of ppl traveling alone didnt survive..
+
+
+# train data is now ready for the last transformation, i.e. age imputation
+save(train.data, file = '/Users/Lena/Documents/Titanic-Kaggle-Challenge/Objects/train_data_missing_age.RData')
+
 
