@@ -20,20 +20,19 @@ library(ggplot2)
 # Cabin = Cabin number
 # Embarked = Port of Embarkation (C/Q/S)
 
-
 # import train data
-train.data = as_tibble(read.csv('Data/train.csv', stringsAsFactors = FALSE, na.strings=c('NA','NaN', '')))
+train.data.original = as_tibble(read.csv('Data/train.csv', stringsAsFactors = FALSE, na.strings=c('NA','NaN', '')))
 
 # check number od observations
-n.train = nrow(train.data)
-n.train
+n.train = nrow(train.data.original)
 
 # check features and their types
-head(train.data)
+head(train.data.original)
 
 # change types of categorical features to factor
-factor.cols = c('Survived', 'Sex', 'Ticket', 'Cabin', 'Embarked') # list all potential factor columns
-train.data[factor.cols] = lapply(train.data[factor.cols], factor)
+train.data = train.data.original
+factor.cols.train = c('Survived', 'Sex', 'Ticket', 'Cabin', 'Embarked') # list all potential factor columns
+train.data[factor.cols.train] = lapply(train.data[factor.cols.train], factor)
 
 
 # CHECK MISSING VALUES #####################################################################################################
@@ -42,7 +41,7 @@ train.data[factor.cols] = lapply(train.data[factor.cols], factor)
 round(sort(sapply(train.data, function(x){sum(is.na(x))}))/n.train*100, 2)
 
 # plot missing data
-missmap(train.data, col=c('yellow', 'black'), main = 'Missing values in train data', legend=FALSE)
+plot.missing = missmap(train.data, col=c('yellow', 'black'), main = 'Missing values in train data', legend=FALSE)
 
 # 1. remove Cabin feature due to high amount (77%) of missing values
 train.data$Cabin = NULL
@@ -57,7 +56,6 @@ train.data = train.data[!is.na(train.data$Embarked),]
 
 # First we need to analyse all the features...
 
-
 ############################################################################################################################
 # additional function for plotting distribution for each categorical feature vs survived
 plot_survival_dist_by_feature = function(data, feature){
@@ -65,9 +63,23 @@ plot_survival_dist_by_feature = function(data, feature){
     summarise(count = n()) %>% 
     ggplot(aes_string(x=feature, y='count', fill='Survived')) + 
            geom_bar(stat='identity') + 
-           scale_fill_manual(values=c("#999999", "#E69F00")) +
+           scale_fill_manual(values=c('#275176', '#81C853')) +
            ggtitle(paste('Distribution of survival by', feature))
 }
+
+# feature = 'Name.title'
+# data = train.data
+# ordered.names = names(rev(sort(table(train.data[, feature]))))
+# data.plot = data %>% group_by_(feature, 'Survived') %>%
+#   summarise(count = n()) %>%
+#   #mutate(feature = factor(feature, levels = ordered.names))
+#   mutate(Name.title = fct_relevel(Name.title, ordered.names))
+# 
+# ggplot(data.plot, aes_string(x=feature, y='count', fill='Survived')) +
+#   geom_bar(stat='identity', position = 'dodge') +
+#   geom_text(aes_string(label='count'), position=position_dodge(width=0.9), vjust=-1.2) +
+#   scale_fill_manual(values=c("#999999", "#E69F00")) +
+#   ggtitle(paste('Distribution of survival by', feature))
 
 # ANALYSE EACH FEATURE #####################################################################################################
 
@@ -82,7 +94,8 @@ train.data = train.data %>%
 
 
 # distribution of name titles
-table(train.data$Name.title) 
+name.title.original = train.data$Name.title
+table(name.title.original) 
 
 # lets seperate classes with high occurence vs low for better visualization
 tmp.name.df = train.data[, c('Name.title', 'Survived')]
@@ -100,26 +113,24 @@ title.conv = c(Capt='Officer', Col='Officer', Major='Officer', Jonkheer='Royalty
                Dr='Officer', Rev='Officer', Countess='Royalty', Dona='Royalty', Mme='Mrs', Mlle='Miss', Ms='Mrs',
                Mr='Mr', Mrs='Mrs', Miss='Miss', Master='Master', Lady='Royalty')
 
-
 train.data = train.data %>% mutate(Name.title = as.factor(title.conv[as.character(Name.title)]))
 table(train.data$Name.title)
 
 # plot with new classes
-plot_survival_dist_by_feature(train.data, 'Name.title')
-
+plot.survival.dist.name.title = plot_survival_dist_by_feature(train.data, 'Name.title')
 
 
 # 2. SEX: change female/male to F/M for less text..
 train.data = train.data %>%
              mutate(Sex = as.factor(ifelse(Sex == 'female', 'F', 'M')))
 
-plot_survival_dist_by_feature(train.data, 'Sex')
+plot.survival.dist.sex = plot_survival_dist_by_feature(train.data, 'Sex')
 # It seems like sex is correlated with survival (more women survived and more men died)
 
 
 # 3. Pclass: Should Pclass be of type 'ordered factor' instead of integer?
 # We will leave it as integer because we want to incorporate the order and the relation between categories
-plot_survival_dist_by_feature(train.data, 'Pclass')
+plot.survival.dist.pclass = plot_survival_dist_by_feature(train.data, 'Pclass')
 # Pclass also looks correlated with the independent feature..
 # In 1st class more people survived and in 3rd class more people died..
 
@@ -127,6 +138,8 @@ plot_survival_dist_by_feature(train.data, 'Pclass')
 # 4. Ticket
 table(train.data$Ticket)
 # There is a lot of ticket classes with only 1 or 2 observations
+
+ticket.classes.length = length(table(train.data$Ticket))
 
 table(table(train.data$Ticket))
 # A lot (547) of different ticket numbers occure only once..
@@ -139,28 +152,28 @@ train.data$Ticket = NULL
 
 
 # 5. Fare
-ggplot(train.data, aes(x=Fare)) + 
-  geom_histogram(binwidth=1, colour='black') +
-  ggtitle('Distribution of Fare')
+plot.fare = ggplot(train.data, aes(x=Fare)) + 
+            geom_histogram(binwidth=1, colour='black') +
+            ggtitle('Distribution of Fare')
     
 # This is the info for how much each passenger payed for its ticket.
 # This feature is relevant for sure.. Lets check how big were the fares from survived vs not-survived
 
-ggplot(train.data, aes(x=Fare)) 
-  geom_histogram(binwidth=3, colour='black') +
-  facet_wrap(~Survived, ncol = 2, scales = 'fixed') +
-  xlim(0,100) # xlim(100,520)
+plot.fare.by.survived = ggplot(train.data, aes(x=Fare)) +
+                        geom_histogram(binwidth=3, fill ='#275176', colour= '#81C853') +
+                        facet_wrap(~Survived, ncol = 2, scales = 'fixed') +
+                        xlim(0,100) # xlim(100,520)
 
 
   
-table(train.data$Survived[which(train.data$Fare < 50)])
-table(train.data$Survived[which(train.data$Fare > 50)])
-# we can see that survived have lower fares...
+fare.matrix.50 = rbind(table(train.data$Survived[which(train.data$Fare <= 50)]), table(train.data$Survived[which(train.data$Fare > 50)]))
+rownames(fare.matrix.50) = c('Fare <= 50', 'Fare  > 50')
+# we can see that survived had higher fares...
 
 
 
 # 6. Embarked
-plot_survival_dist_by_feature(train.data, 'Embarked')
+plot.survival.dist.embarked = plot_survival_dist_by_feature(train.data, 'Embarked')
 # Is this info important? 
 # Lets leave it for now.. and let the algorithms decide :)
 
@@ -169,12 +182,12 @@ plot_survival_dist_by_feature(train.data, 'Embarked')
 
 # 7. SibSp
 table(train.data$SibSp)
-plot_survival_dist_by_feature(train.data, 'SibSp')
+plot.survival.dist.sibsp = plot_survival_dist_by_feature(train.data, 'SibSp')
 
 # 8. Parch
 table(train.data$Parch)
 
-plot_survival_dist_by_feature(train.data, 'Parch')
+plot.survival.dist.name.parch = plot_survival_dist_by_feature(train.data, 'Parch')
 
 # create a new feature Family size from summing #parent/#children, #spouses/siblings + 1 for the observed passenger
 train.data$Family.size = as.integer(train.data$Parch + train.data$SibSp + 1)
@@ -186,11 +199,12 @@ train.data$SibSp = NULL
 # create a new boolean feature if traveling alone
 train.data$Travel.alone = ifelse(train.data$Family.size == 1, TRUE, FALSE)
 
-plot_survival_dist_by_feature(train.data, 'Travel.alone')
+plot.survival.dist.family.size = plot_survival_dist_by_feature(train.data, 'Family.size')
+plot.survival.dist.travel.alone = plot_survival_dist_by_feature(train.data, 'Travel.alone')
 # we can se that between ppl traveling alone more people died
 
 ##################################################################################################################
 # train data is now ready for the last transformation, i.e. age imputation
-save(train.data, file = 'Objects/train_data_missing_age.RData')
+# save(train.data, file = 'Objects/train_data_missing_age.RData')
 
 
