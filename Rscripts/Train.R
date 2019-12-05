@@ -160,7 +160,7 @@ model.rf.roc = tmp$ROC
 #                     data = train.data,
 #                     method = 'knn',
 #                     trControl = train.control,
-#                     tuneLength = 20)
+#                     tuneGrid = expand.grid(k = 1:15))
 # 
 # save(model.knn, file = 'Objects/Models/model_knn.RData')
 load(file = 'Objects/Models/model_knn.RData')
@@ -233,12 +233,14 @@ bwplot(results, metric = 'Accuracy')
 
 # 2. compare ROC and AUC
 AUC = data.frame(lr = model.lr.auc, dt = model.dt.auc, rf = model.rf.auc, knn = model.knn.auc, svm = model.svm.auc)
+rownames(AUC) = 'AUC'
+AUC = rev(sort(AUC))
 names(which.max(AUC))
 
 # plot AUC
 ggplot(melt(AUC, value.name = 'AUC'), aes(x = variable, y = AUC)) + 
-  geom_bar(stat = 'identity', color = 'black') +
-  coord_flip()
+       geom_bar(stat = 'identity', color = 'black') +
+       coord_flip()
 
 
 # add variable to define the model
@@ -252,11 +254,11 @@ model.svm.roc$model = 'svm'
 roc.plot.data = rbind(model.lr.roc, model.dt.roc, model.rf.roc, model.knn.roc, model.svm.roc)
 
 # plot all the ROC curves on one graph
-ggplot(roc.plot.data, aes(x = x, y = y, colour = model)) +
-       geom_line() +
-       labs(title = 'ROC', x = 'False positive rate', y = 'True positive rate')
+roc.plot = ggplot(roc.plot.data, aes(x = x, y = y, colour = model)) +
+           geom_line() +
+           labs(title = 'ROC', x = 'False positive rate', y = 'True positive rate')
 
 
 # save final model --> RANDOM FOREST
-save(model.rf.1, file = 'Objects/Models/final_model_rf.Rdata')
-save(model.svm.2, file = 'Objects/Models/final_model_svm.Rdata')
+#save(model.rf.1, file = 'Objects/Models/final_model_rf.Rdata')
+#save(model.svm.2, file = 'Objects/Models/final_model_svm.Rdata')

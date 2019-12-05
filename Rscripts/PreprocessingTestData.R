@@ -10,9 +10,10 @@ library(reshape2)
 library(tidyr)
 
 # import test data
-test.data = as_tibble(read.csv('Data/test.csv', stringsAsFactors = FALSE, na.strings=c('NA','NaN', '')))
+test.data.original = as_tibble(read.csv('Data/test.csv', stringsAsFactors = FALSE, na.strings=c('NA','NaN', '')))
 
 ### convert to factor
+test.data = test.data.original
 factor.cols = c('Sex', 'Ticket', 'Cabin', 'Embarked') # list all potential factor columns
 test.data[factor.cols] = lapply(test.data[factor.cols], factor)
 
