@@ -1,5 +1,5 @@
 ---
-title: "Titanic survival prediction"
+title: "Titanic Survival Prediction"
 author: "Lena Bencina"
 date: "12.1.2019"
 output: html_document
@@ -31,24 +31,34 @@ require(gridExtra)
 <br>
 
 ## Importing data
+
 We start by importing the training dataset. 
+
+<br>
 ```{r, echo = FALSE, results = 'asis'}
 kable(train.data.original[1:5,]) %>%  kable_styling(bootstrap_options = "striped", full_width = F)
 ```
+<br>
 
 We can see that our dataset has `r nrow(train.data.original)` observations and `r ncol(train.data.original)` features, from which Survived is a dependent feature and PassengerId is a unique feature used for "identification" of passengers.
 
 We are dealing with categorical and numerical features, so we need to take care the **type conversion**. Features *`r factor.cols.train`* will be converted to factors and the rest will be left as it is.
 
+<br>
 ```{r, echo = FALSE, results = 'asis'}
 kable(train.data.original %>% summarise_all(class)) %>%  kable_styling(bootstrap_options = "striped", full_width = F)
 ```
+<br>
 
-Next, we need to check the **missing data**. let's compute the % of missing data and visualize it.
+Next, we need to check the **missing data**. Let's compute the % of missing data and visualize it.
 
+<br>
 ```{r, echo = FALSE}
-kable(round(sort(sapply(train.data.original, function(x){sum(is.na(x))}))/n.train*100, 1), col.names = c('% of missing data')) %>%  kable_styling(bootstrap_options = "striped", full_width = F, position = 'center')
+tmp = t(data.frame(round(sort(sapply(train.data.original, function(x){sum(is.na(x))}))/n.train*100, 1)))
+rownames(tmp) = '% of missing data'
+kable(tmp) %>%  kable_styling(bootstrap_options = "striped", full_width = F, position = 'center')
 ```
+<br>
 
 ```{r, echo = FALSE, warning = FALSE}
 missmap(train.data.original, main = 'Missing values in train data', legend = FALSE, col = c('#81C853', '#275176'))
@@ -56,156 +66,185 @@ missmap(train.data.original, main = 'Missing values in train data', legend = FAL
 
 Three features have some missing data:
 
-1. **CABIN**: It doesn't make sense to impute the data where there is only 23% values. We will remove the Cabin feature due to high amount of missing data.
+1. **CABIN**: It is not a good practice to impute the data where there is only 23% values. We remove the Cabin feature due to high amount of missing data.
 
-2. **EMBARKED**: We don't have this information for only two passengers. We will remove these two observations for now and not waste time with imputations here. If there will be time we will get back to it and impute it with knn or some other classification algorithm.
+2. **EMBARKED**: We don't have the information about embarkation for two passengers only. We remove these two observations for now and not waste time with imputations here. If there will be time we will get back to it and impute it with knn or some other classification algorithm.
 
-3. **AGE**: Intuitive guess would be that age is an important feature for survival prediction. We will make an imputation model to predict the missing age, but first let's analyse all the features.
+3. **AGE**: An intuitive guess would be that age is an important feature for survival prediction. We make an imputation model to predict the missing age, but first let's analyse all the features.
 
 <br>
 <br>
 
 ## Feature analysis
 
-Check the overall distribution of dependent variable:
-```{r, echo = FALSE}
-kable(table(train.data.original$Survived), col.names = c('Survived', 'Freq'))%>%  kable_styling(bootstrap_options = "striped", full_width = F, position = 'center')
-```
-
-There is enough observations in each classes, so we do not need to worry about that. Next, we will analyse each feature seperately.
+First, we need check the overall distribution of the dependent variable.
 
 <br>
+```{r, echo = FALSE}
+tmp = data.frame(t(data.frame(table(train.data.original$Survived))))[-1,]
+colnames(tmp) = c('0', '1')
+kable(tmp)%>%  kable_styling(bootstrap_options = "striped", full_width = F, position = 'center')
+```
+<br>
+
+There is enough observations in each classes, so we do not need to worry about that. Next, we analyse each feature seperately.
+
 <br>
 
 ### 1.NAME
 
-Name is a text feature and thus it is not useful for further analysis in this form. One way to use it would be with additional text mining analysis, however, following intuition, a passenger's name is not really relevant for predicting the survival. On the other hand, we can see that each name includes the name title, such as Mrs., Ms., Miss, etc. We will extract it and make an additional feature (Name.title) from it. 
+Name is a text feature and thus it is not useful for further analysis in this form. One way to use it would be with additional text mining analysis, however, following intuition, a passenger's name is not really relevant for predicting the survival. On the other hand, we can see that each name includes the name title, such as Mrs., Ms., Miss, etc. We extract it and make an additional feature (Name.title) from it. 
 
 This is the distribution of original name titles:
 
+<br>
 ```{r, echo = FALSE}
-kable(rev(sort(table(name.title.original))), col.names = c('Original name title', 'Freq'))%>%  kable_styling(bootstrap_options = "striped", full_width = F, position = 'center')
+tmp = data.frame(as.list(rev(sort(table(name.title.original)))))
+row.names(tmp) = 'Freq'
+kable(tmp)%>%  kable_styling(bootstrap_options = "striped", full_width = F, position = 'center')
 ```
+<br>
 
-A lot of categories includes only one observation which can lead to poor predictions. let's try to combine it with the following mapping.
+A lot of categories includes only one observation which can lead to poor predictions. Let's try to combine it with the following mapping.
 
+<br>
 ```{r, echo = FALSE}
-kable(title.conv, col.names = c('Mapped to'))%>%  kable_styling(bootstrap_options = "striped", full_width = F, position = 'center')
+tmp = data.frame(as.list(sort(title.conv)))
+row.names(tmp) = 'Mapped to'
+kable(tmp)%>%  kable_styling(bootstrap_options = "striped", full_width = F, position = 'center')
 ```
+<br>
 
 The distribution is now the following.
 
+<br>
 ```{r, echo = FALSE}
-kable(rev(sort(table(train.data$Name.title))), col.names = c('New name title', 'Freq'))%>%  kable_styling(bootstrap_options = "striped", full_width = F, position = 'center')
+tmp = data.frame(as.list(rev(sort(table(train.data$Name.title)))))
+row.names(tmp) = 'Freq'
+kable(tmp) %>%  kable_styling(bootstrap_options = "striped", full_width = F, position = 'center')
 ```
+<br>
 
-The distribution of new feature by survival is presented in the next plot.
+The distribution of the new feature by survival is presented in the next plot.
 
+<br>
 ```{r, echo = FALSE}
 plot.survival.dist.name.title
 ```
 
 <br>
-<br>
 
 ### 2. SEX
 
-Next feature is Sex. Let's see the distribution by survival.
+By intuition we would say that Sex is an important predictor in survival. Let's see the distribution by survival.
 
+<br>
 ```{r, echo = FALSE}
 plot.survival.dist.sex
 ```
+<br>
 
 It seems like Sex is correlated with survival (more women survived and more men died).
 
 <br>
-<br>
 
 ### 3. PCLASS
 
-Pclass feature represents the ticket class of a passenger, i.e. a proxy for socio-economic status, which can be 1, 2, or 3. We can include it as ordered factor or as an integer. Because an integer will incorporate the distance between classes, we will include it as an integer.
+The Pclass feature represents the ticket class of a passenger, i.e. a proxy for socio-economic status, which can be 1, 2, or 3. We can include it as an ordered factor or as an integer. Because an integer will incorporate the distance between classes, we include it as an integer.
 
-Distribution of Pclass feature by survival is the following.
+Distribution of the Pclass feature by survival is the following.
 
+<br>
 ```{r, echo = FALSE}
 plot.survival.dist.pclass
 ```
+<br>
 
 Pclass also looks correlated with survival. In the 1st class more people survived and in the 3rd class more people died.
 
 <br>
-<br>
 
 ### 4. TICKET
 
-Ticket feature has `r ticket.classes.length` clasees. Most of them includes only one or two observations. The following table represents the number of classes with *n* observations.
-
-```{r, echo = FALSE}
-kable(table(table(train.data.original$Ticket)), col.names = c('x (Number of observations per class)', 'Number of classes with x observations')) %>%  kable_styling(bootstrap_options = "striped", full_width = F, position = 'center')
-```
-
-We can see that 547 tickets are unique, which is more than half of the passengers. This information doesn't seem rrelevant. From this we can assume that new ticket classes will appear within the test set. For now we will delete the feature and later on we can try to parse some information such as ticket prefix from it and create a new feature.
+The Ticket feature has `r ticket.classes.length` clasees. Most of them includes only one or two observations. The following table presents the number of classes with *n* observations.
 
 <br>
+```{r, echo = FALSE}
+tmp = t(data.frame(table(table(train.data.original$Ticket))))
+rownames(tmp) = c('x (Number of observations per class)', 'Number of classes with x observations')
+kable(tmp) %>%  kable_styling(bootstrap_options = "striped", full_width = F, position = 'center')
+```
+<br>
+
+We can see that 547 tickets are unique, which is more than half of the passengers. This information doesn't seem relevant. From this we can assume that new ticket classes will appear within the test set. For now we delete the feature and later on we can try to parse some information such as ticket prefix from it and create a new feature.
+
 <br>
 
 ### 5. FARE
 
-Distribution of numerical feature Fare is distributed by survival as following.
+Distribution of the numerical feature Fare is distributed by survival as following.
 
+<br>
 ```{r, echo = FALSE, warning = FALSE}
 plot.fare.by.survived
 ```
+<br>
 
-We can see that survived had higher fares. For example, between people with fares less than (or equal) 50 number of died is aprox. two times the number of survived and vice versa for people with fares higher than 50.
+We can see that lower fares are more common between people who didn't survive. For example, people with fares less than (or equal) 50 number of died is aprox. two times the number of survived and vice versa for people with fares higher than 50.
 
+<br>
 ```{r, echo = FALSE}
 kable(fare.matrix.50) %>%  kable_styling(bootstrap_options = "striped", full_width = F, position = 'center')
 ```
 
 <br>
-<br>
 
 ### 6. EMBARKED
 
-Embarked feature tells us the passenger's port of embarkation. 
+The Embarked feature tells us the passenger's port of embarkation. 
 
+<br>
 ```{r, echo = FALSE, warning = FALSE}
 plot.survival.dist.embarked
 ```
+<br>
 
 Is this info relevant? Let's leave it for now and let the algorithms decide.
 
 <br>
-<br>
 
 ### 7. SIBSP & PARCH
 
-A bit less intuitive features are features Sibsp and Parch, where SibSp is the number of siblings/spouses aboard and Parch is the number of parents/children aboard. These features are not so intuitive. Maybe we can find a better way to represent this information. We will create a new feature named Family.size using the following equation.
+A bit less intuitive features are the features Sibsp and Parch, where SibSp is the number of siblings/spouses aboard and Parch is the number of parents/children aboard. These features are not so intuitive. Maybe we can find a better way to represent this information. We create a new feature named Family.size using the following equation.
 
+<br>
 $$Family.size = Sibsp + Parch + 1$$
+<br>
 
 
 Another information which could be even more relevant is if the passenger was traveling alone, i.e. where family size is 0.
 
+<br>
 ```{r, echo = FALSE}
 plot.survival.dist.travel.alone
 ```
+<br>
 
 More people traveling alone died than survived.
 
-<br>
 <br>
 
 ## Age imputation
 
 Now that we preprocessed all the features we can start dealing with imputation of missing Age values. Let's provide some useful information about the feature.
 
+<br>
 ```{r, echo = FALSE}
 age.tmp = data.frame(Missing = nrow(train.data.missing.age), Known = nrow(train.data.known.age))
 rownames(age.tmp) = 'Number of observations'
 kable(age.tmp) %>% kable_styling(bootstrap_options = "striped", full_width = F, position = 'center')
 ```
+<br>
 
 We will use linear regression for age prediction. After a few tries (as seen in the script ImputeAge.R) we obtain a model with all the predictors statistically significant.
 
@@ -216,50 +255,55 @@ summary(lm.model3)
 
 We can compare the observed values with the predicted in the following plot.
 
+<br>
 ```{r, echo = FALSE}
 age.imputation.accuracy.plot
 ```
+<br>
 
 There are deviations for sure, but overall the fit is not so bad. It is not the best model but lets just try to proceed with survival prediction and get back to this later if there will be time.
 
-The last thing to check is the distribution.
+The last thing to check is the Age distribution.
 
+<br>
 ```{r, echo = FALSE}
 grid.arrange(age.dist.plot, age.dist.imputed.plot, ncol=2)
 ```
+<br>
 
 The overall distribution before vs. after imputation is relatively similar with the exception of the middle peak around *age = 30*. We should analyse this further when trying to improve the survival prediction model.
 
 <br>
-<br>
 
 ## Preprocessing test data
 
-Test data is being preprocessed in the same way as the train data. However, there were some differences needed to take into account. One of the problems that arrived was an additional feature with missing values.
+Test data is being preprocessed in the same way as the train data. However, there were some differences needed to be taken into account. One of the problems that arrived was an additional feature with missing values.
 
+<br>
 ```{r, echo = FALSE, warning = FALSE}
 missmap(test.data.original, main = 'Missing values in test data', legend=FALSE, col = c('#81C853', '#275176'))
 ```
+<br>
 
-There is one observation without Fare information. For the sake of simplicity, we will impute it with an average Fare value. 
+There is one observation without Fare information. For the sake of simplicity, we impute it with an average Fare value. 
 
 Age were imputed with the same model as in the train data.
+
+<br>
 
 And now, we can finally start with training.
 
 <br>
-<br>
 
 ## Model training 
 
-We will use **CARET** library for training and prediction. As we are dealing with classification problem we will use five different algorithms suitable for classification. To avoid overfitting we will include a bootstrapping method, more specifically 10 cross-validation with 3 repeats. For consistency, all the models will use the same bootstrapping settings.
+We use **CARET** library for training and prediction. As we are dealing with classification problem we use five different algorithms suitable for classification (Logistic regression, Decission trees, Random forest, K-nearest neighbours and Support vector machine). To avoid overfitting we include a bootstrapping method, more specifically 10 cross-validation with 3 repeats. For consistency, the bootstrapping settings are the same across all the training.
 
-<br>
 <br>
 
 ### 1. LOGISTIC REGRESSION
 
-Starting with inclusion of all features towards reaching statistical significant predictors we finish with the following model. We are dealing with non parametric method, so we don't need to tune any parameters, thus choosing the final prediction formula is pretty much all we can do.
+Starting with inclusion of all features to identify the statistical significant predictors we finish with the following model. We are dealing with non parametric method, so we don't need to tune any parameters, thus choosing the final prediction formula is pretty much all we can do.
 
 Formula used in the final regression model: $Survived ~ Sex + Pclass + Age + Family.size + Travel.alone$.
 
@@ -268,17 +312,20 @@ summary(model.lr.3)
 ```
 
 <br>
-<br>
 
 ### 2. DECISION TREES
 
 This algorithm has multiple parameters:
-1. The complexity parameter (cp), which is the minimum improvement in the model needed at each node. It’s based on the cost complexity of the model.
-2. Maxdeepth, which is used to set the maximum depth of a tree.
-3. Minsplit, which is the minimum number of samples that must exist in a node for a split to happen or be attempted.
-4. Minbucket, which is the minimum number of samples that can be present in a Terminal node.
 
-Leaving *minsplit = 20*  and *minbucket = 7* as default values, we first tune *cp* with random values (output not included). In the second model (output below), we tune *maxdepth* parameter.
+1. The complexity parameter (*cp*), which is the minimum improvement in the model needed at each node. It’s based on the cost complexity of the model.
+
+2. *Maxdeepth*, which is used to set the maximum depth of a tree.
+
+3. *Minsplit*, which is the minimum number of samples that must exist in a node for a split to happen or be attempted.
+
+4. *Minbucket*, which is the minimum number of samples that can be present in a Terminal node.
+
+Leaving *minsplit = 20*  and *minbucket = 7* as default values, we first tune *cp* with random values (output not included). In the second model (output below), we tune *maxdepth* parameter using values from 1 to 10. The result of training the second model is presented below.
 
 ```{r, echo = FALSE}
 model.dt.2
@@ -287,15 +334,23 @@ model.dt.2
 The second model reached the highest accuracy with *maxdepth = 4* and *cp = 0.01*, which was higher than accuracy at any value of *cp* in the first model. 
 
 <br>
-<br>
 
 ### 3. RANDOM FOREST
+
+Focusing on the two main parameters,
+
+1. *ntree*, i.e. number of trees to grow,
+
+2. *mtry*, i.e. number of variables available for splitting at each tree node,
+
+we start with *mtry* tunning using values from 1 to 15 and leave *ntree* set to 500 (output below).
 
 ```{r, echo = FALSE}
 model.rf.1
 ```
 
-<br>
+Next, we tune *ntree* using values 200, 300, ..., 700 with *mtry* set to 5, however our accuracy doesn't seem to increase (output not included). Thus, we use the presented model as the final random forest model.
+
 <br>
 
 ### 4. K-NEAREST NEIGHBOURS (KNN)
@@ -306,55 +361,83 @@ The only parameter to tune here is the number of nearest neighbours (*k*). We fi
 model.knn
 ```
 
-The model reached the highest accuracy with *k = 7*, however as expected the training accuracy is very low comparing to the others.
 
-<br>
+The model reached the highest accuracy with *k = 7*, however the training accuracy is still relatively low comparing to the others.
+
 <br>
 
 ### 5. SUPPORT VECTOR MACHINE (SVM)
 
+From a pool of different SVM algorithms we use *SVM with radial basis function kernel*. (The kernel or kernel function is refered to a method of using a linear classifier to solve a non-linear problem. This function is what is applied on each data instance to map the original non-linear observations into a higher-dimensional space in which they become separable.) The *radial kernel* requires a choice of two parameters,
+
+1. Cost of a radial kernel (*C*), which controls the complexity of the boundary between support vectors.
+
+2. *Sigma*, a smoothing parameter (a parameter used in kernel function).
+
+In the first try we tune the *C* parameter with 10 random values (output not included). In the second try we tune *sigma* and *C* as well; we can see the combinations of values used in the output below.
 
 ```{r, echo = FALSE}
 model.svm.2
 ```
 
-<br>
+As seen from the output we reach the highest accuracy with *sigma = 0.2* and *C = 1* and use this model as the final SVM model.
+
 <br>
 
 ## Model comparison
 
-We will compare the models using two different measures.
-
-<br>
+We compare the models using two different measures.
 
 ### Accuracy
 
-First, we will compare the accuracy across all fitted models.
+First, we compare the accuracy across all fitted models, using the formula 
+
+<br>
+$$ Accuracy = \frac{Number\ of\ correct\ predictions}{Total\ number\ of\ predictions}.$$
+<br>
+
+A summary of results are presented in the following output.
 
 ```{r, echo = FALSE}
 summary(results, metric = 'Accuracy')
 ```
 
+And a visualization of the accuracy distribution:
+
 ```{r, echo = FALSE}
 bwplot(results, metric = 'Accuracy')
 ```
 
-We can see that Random Forest's performance scored the highest (average) training  accuracy, which was not that much higher than the (average) training accuracy of SVM.
+We can see that Random forest's performance scored the highest (average) training  accuracy, which was not that much higher than the (average) training accuracy of SVM.
+
 <br>
 
-### ROC (Receiver operating curve)
+### ROC curve
 
-An additional, a bit less intuitive measure is the AUC measure  (area under the receiver operating curve).
+An additional measure we use is the AUC measure, i.e. area under the receiver operating characteristic or ROC curve. ROC is a probability curve and AUC represents the degree or measure of separability. It tells how much model is capable of distinguishing between classes at different decision thresholds. Higher the AUC, better the model is at predicting 0s as 0s and 1s as 1s. The ROC curve is plotted with TPR (True positive rate) against the FPR (False positive rate), where
+
+<br>
+$$\text{TPR} = \frac{\text{# TRUE POSITIVES}}{\text{# TRUE POSITIVES} + \text{# FALSE NEGATIVES}} \quad \quad \text{FPR} = \frac{\text{# FALSE POSITIVES}}{\text{# FALSE POSITIVES} + \text{# TRUE NEGATIVES}}$$
+<br>
+Area under the curve is next calculated for each of the fitted models. The results are presented in the following table.
+
+<br>
+```{r, echo = FALSE}
+kable(AUC)  %>% kable_styling(bootstrap_options = "striped", full_width = F, position = 'center')
+```
+<br>
+
+And a visualization of the ROC curves:
 
 ```{r, echo = FALSE}
 roc.plot
 ```
 
-```{r, echo = FALSE}
-kable(AUC)  %>% kable_styling(bootstrap_options = "striped", full_width = F, position = 'center')
-```
+We can see that the final Random forest model has by far the best AUC value and thus the best seperability of classes.
 
-## Prediction
+<br>
+
+## Prediction & Conclusion
 
 Using random forest model with *mtry* parameter set to 5 and *ntree* to 500 we predict the survival of passengers in the test data.
 
@@ -362,15 +445,11 @@ After submitting the predictions to Kaggle we get the final (test) accuracy 78%.
 
 We could improve the predictions with:
 
-* Deeper feature analysis, such as create new features or remove some of the included.
+* Deeper feature analysis, such as creating new features or removing some of the included.
 * Further analysis of Age imputation models.
-* Extending parameter's tunning (for example using different kernels with SVM algorithm).
+* Extending parameter's tunning, such as using different kernels with SVM algorithm.
 * Choosing different versions of specific algotihms or including additional ones, such as Neural Networks or Naive Bayes.
 
-<br>
-<br>
-<br>
-<br>
 <br>
 <br>
 <br>
