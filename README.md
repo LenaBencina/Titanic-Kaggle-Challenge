@@ -1,11 +1,11 @@
 # Titanic Kaggle Challenge
 
-This repo is includes my own solution for kaggle titanic challenge (https://www.kaggle.com/c/titanic/overview) using R. The project is structured as follows.
+This repo includes my own solution for kaggle titanic challenge (https://www.kaggle.com/c/titanic/overview) using R. The project is structured as follows.
 
 
 **Data**: training data, testing data and submission file with final predictions
 
-**Objects**: objects made while preprocessing and training (all the final models are in the Models folder)
+**Objects**: RData objects made while preprocessing and training (all the final models are in the Models folder)
 
 **Report**: R markdown file (Rmd) used for creating a report and the actual report as html file
 
